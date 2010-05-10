@@ -3,7 +3,8 @@ module TinyMCE
   module Base
     # When this module is included, extend it with the available class methods
     def self.included(base)
-      base.extend(ClassMethods)
+      base.send(:extend, ClassMethods)
+      base.send(:include, InstanceMethods)
     end
 
     module ClassMethods
@@ -44,6 +45,22 @@ module TinyMCE
 
         # Run the above proc before each page load this method is declared in
         before_filter(proc, options)
+      end
+    end
+    module InstanceMethods
+      def uses_tiny_mce(options = {})
+        configuration = TinyMCE::Configuration.new(options.delete(:options), options.delete(:raw_options))
+
+        # If the tiny_mce plugins includes the spellchecker, then form a spellchecking path,
+        # add it to the tiny_mce_options, and include the SpellChecking module
+        if configuration.plugins.include?('spellchecker')
+          configuration.reverse_add_options("spellchecker_rpc_url" => "/" + self.controller_name + "/spellchecker")
+          self.class_eval { include TinyMCE::SpellChecker }
+        end
+        configurations = @tiny_mce_configurations || []
+        configurations << configuration
+        @tiny_mce_configurations = configurations
+        @uses_tiny_mce = true
       end
     end
   end
